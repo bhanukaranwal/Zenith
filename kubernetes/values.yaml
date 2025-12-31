@@ -1,0 +1,98 @@
+replicaCount: 1
+
+backend:
+  image:
+    repository: zenith/backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+  env:
+    - name: DATABASE_URL
+      value: "postgresql+asyncpg://zenith:zenith_pass@postgres:5432/zenith"
+    - name: REDIS_URL
+      value: "redis://redis:6379/0"
+
+frontend:
+  image:
+    repository: zenith/frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: LoadBalancer
+    port: 3000
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 16-alpine
+  persistence:
+    enabled: true
+    size: 10Gi
+  env:
+    POSTGRES_USER: zenith
+    POSTGRES_PASSWORD: zenith_pass
+    POSTGRES_DB: zenith
+
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: 7-alpine
+  persistence:
+    enabled: true
+    size: 5Gi
+
+celery:
+  enabled: true
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+triton:
+  enabled: true
+  image:
+    repository: nvcr.io/nvidia/tritonserver
+    tag: 24.09-py3
+  resources:
+    limits:
+      nvidia.com/gpu: 1
+      memory: 8Gi
+    requests:
+      memory: 4Gi
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: zenith.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: zenith-tls
+      hosts:
+        - zenith.example.com
